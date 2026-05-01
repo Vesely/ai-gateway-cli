@@ -1,23 +1,47 @@
 {
-  "name": "ai-gateway",
+  "name": "ai-gateway-cli",
   "version": "0.1.0",
-  "description": "Tiny CLI for generating text and images via the Vercel AI Gateway.",
+  "description": "Tiny CLI for generating text and images via the Vercel AI Gateway. One key, hundreds of models.",
+  "keywords": [
+    "ai",
+    "cli",
+    "vercel",
+    "ai-gateway",
+    "openai",
+    "anthropic",
+    "claude",
+    "gpt",
+    "gemini",
+    "image-generation",
+    "text-generation"
+  ],
+  "license": "MIT",
+  "author": "Vesely",
+  "homepage": "https://github.com/Vesely/ai-gateway-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vesely/ai-gateway-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Vesely/ai-gateway-cli/issues"
+  },
   "type": "module",
   "bin": {
-    "ai-gateway": "./bin/ai-gateway.js"
+    "ai-gateway": "./dist/index.js"
   },
   "files": [
-    "bin",
-    "src",
-    "README.md"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",
-    "ai-gateway": "bun run src/index.ts"
-  },
-  "engines": {
-    "bun": ">=1.1.0"
+    "build": "bun build src/index.ts --target=node --outfile=dist/index.js --packages=external --banner='#!/usr/bin/env node' && chmod +x dist/index.js",
+    "prepublishOnly": "bun run typecheck && bun run build"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^1.0.0",

@@ -10,17 +10,17 @@ cat README.md | ai-gateway "summarize this"
 
 ## Install
 
-Requires [Bun](https://bun.sh) ≥ 1.1.
+Requires Node 20+.
 
 ```bash
-bun install
-bun link               # makes the `ai-gateway` command available globally
+npm install -g ai-gateway-cli
 ```
 
-Or run directly without linking:
+Or with another package manager:
 
 ```bash
-bun run src/index.ts "your prompt"
+pnpm add -g ai-gateway-cli
+bun add -g ai-gateway-cli
 ```
 
 ## First run
