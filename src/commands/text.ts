@@ -23,10 +23,9 @@ export async function runText(options: TextOptions): Promise<void> {
 
   if (options.json) {
     const result = await generateText({ model, prompt });
-    const usage = result.usage as { inputTokens?: number; outputTokens?: number };
     const cost = await computeCost(modelId, {
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
     });
     stdout.write(JSON.stringify(
       {

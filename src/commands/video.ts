@@ -30,10 +30,11 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   const gateway = createGateway({ apiKey });
   const start = Date.now();
   const stopSpinner = options.json
-    ? () => {}
+    ? (_: boolean) => {}
     : startSpinner(`Generating video with ${modelId}`);
 
   let result: Awaited<ReturnType<typeof generateVideo>>;
+  let succeeded = false;
   try {
     result = await generateVideo({
       model: gateway.videoModel(modelId),
@@ -44,8 +45,9 @@ export async function runVideo(options: VideoOptions): Promise<void> {
         ? { resolution: options.resolution as `${number}x${number}` }
         : {}),
     });
+    succeeded = true;
   } finally {
-    stopSpinner();
+    stopSpinner(succeeded);
   }
 
   if (!result.videos.length) throw new Error("Gateway returned no videos.");
@@ -60,18 +62,20 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   );
 
   if (options.json) {
-    const seconds = options.duration ?? defaultDuration(modelId);
-    const cost = await computeCost(modelId, {
-      videoSeconds: seconds && result.videos.length ? seconds * result.videos.length : undefined,
-      videoResolution: options.resolution,
-    });
+    const cost =
+      options.duration != null && options.resolution
+        ? await computeCost(modelId, {
+            videoSeconds: options.duration * result.videos.length,
+            videoResolution: options.resolution,
+          })
+        : null;
     stdout.write(
       JSON.stringify(
         {
           model: modelId,
           files: savedPaths,
           elapsedSeconds: +((Date.now() - start) / 1000).toFixed(1),
-          durationSeconds: seconds ?? null,
+          durationSeconds: options.duration ?? null,
           resolution: options.resolution ?? null,
           aspectRatio: options.aspect ?? null,
           cost,
@@ -83,13 +87,6 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   } else {
     for (const p of savedPaths) stdout.write(`Saved: ${p}\n`);
   }
-}
-
-function defaultDuration(modelId: string): number {
-  if (modelId.startsWith("google/veo")) return 8;
-  if (modelId.startsWith("klingai/")) return 5;
-  if (modelId.startsWith("alibaba/")) return 5;
-  return 5;
 }
 
 function pickExtension(mediaType: string | undefined): string {
@@ -106,8 +103,9 @@ function resolveOutputPath(
   ext: string,
 ): string {
   if (override) {
-    if (total === 1) return resolve(override);
-    return resolve(suffixFilename(override, `-${index + 1}`));
+    const withExt = override.includes(".") ? override : `${override}.${ext}`;
+    if (total === 1) return resolve(withExt);
+    return resolve(suffixFilename(withExt, `-${index + 1}`));
   }
   const stamp = new Date()
     .toISOString()
@@ -126,7 +124,7 @@ function suffixFilename(path: string, suffix: string): string {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-function startSpinner(label: string): () => void {
+function startSpinner(label: string): (succeeded: boolean) => void {
   if (!stderr.isTTY) {
     stderr.write(`${label}…\n`);
     return () => {};
@@ -140,10 +138,12 @@ function startSpinner(label: string): () => void {
   };
   render();
   const interval = setInterval(render, 200);
-  return () => {
+  return (succeeded) => {
     clearInterval(interval);
-    const elapsed = Math.round((Date.now() - start) / 1000);
     stderr.write(`\r${" ".repeat(label.length + 20)}\r`);
-    stderr.write(`Done in ${elapsed}s.\n`);
+    if (succeeded) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      stderr.write(`Done in ${elapsed}s.\n`);
+    }
   };
 }
