@@ -78,6 +78,16 @@ ai-gateway models --search claude
 ai-gateway models --json | jq '.[] | select(.type=="language") | .id'
 ```
 
+## Claude Code skill
+
+There's a companion Claude Code skill that lets any agent in your terminal use this CLI to generate text or images. Install it with:
+
+```bash
+npx skills@latest add Vesely/skills/ai-gateway
+```
+
+Source: <https://github.com/Vesely/skills/tree/main/ai-gateway>.
+
 ## Key resolution order
 
 1. `--key <value>` flag
