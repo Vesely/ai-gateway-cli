@@ -2,11 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { stdout, stderr } from "node:process";
 import { createGateway } from "@ai-sdk/gateway";
 import { experimental_generateVideo as generateVideo } from "ai";
-import {
-  DEFAULT_VIDEO_MODEL,
-  WAN_V2_5_T2V_MODEL,
-  loadConfig,
-} from "../config.ts";
+import { DEFAULT_VIDEO_MODEL, loadConfig } from "../config.ts";
 import { resolveApiKey, computeCost, findModel } from "../gateway.ts";
 import { resolveOutputPath } from "../output-path.ts";
 
@@ -125,7 +121,7 @@ function normalizeResolution(
     );
   }
   let [w, h] = dims;
-  if (input.toLowerCase() === "480p" && modelId === WAN_V2_5_T2V_MODEL) {
+  if (input.toLowerCase() === "480p" && modelId === "alibaba/wan-v2.5-t2v-preview") {
     w = 848;
   }
   if (aspect) {
