@@ -23,7 +23,7 @@ TEXT OPTIONS
   Stdin: piped input is prepended to the prompt as context.
 
 IMAGE OPTIONS
-  -m, --model <id>     model id (default: configured or bfl/flux-2-flex)
+  -m, --model <id>     model id (default: configured or google/imagen-4.0-fast-generate-001)
   -o, --output <path>  output file (default: ./ai-image-<timestamp>.png)
   -n, --count <n>      number of images (default: 1)
       --json           print JSON metadata instead of human output

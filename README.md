@@ -48,7 +48,7 @@ Get an API key from <https://vercel.com/ai-gateway> and either:
 Picked for the best price/quality ratio:
 
 - Text: `xai/grok-4.1-fast-non-reasoning`
-- Image: `bfl/flux-2-flex`
+- Image: `google/imagen-4.0-fast-generate-001`
 - Video: `xai/grok-imagine-video`
 
 Override per-call with `-m <model-id>`, or persist with `ai-gateway config set text-model openai/gpt-5.4`.
