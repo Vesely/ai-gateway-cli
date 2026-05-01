@@ -1,0 +1,29 @@
+src/config.ts
+  df38d39246421433 16
+src/output-path.ts
+  df38d39246421433 1-28
+src/commands/image.ts
+  df38d39246421433 11,43
+src/commands/video.ts
+  df38d39246421433 5-11,29,32,36-42,55,70,128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "2718972e0663fd3986bfd57d6ada992f99356310",
+  "prompts": {
+    "df38d39246421433": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a41fef09-f9aa-48b9-8fab-cac780e0ddc9",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "David Veselý",
+      "messages": [],
+      "total_additions": 50,
+      "total_deletions": 60,
+      "accepted_lines": 50,
+      "overriden_lines": 0
+    }
+  }
+}
