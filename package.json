@@ -1,5 +1,5 @@
 {
-  "name": "ai-gateway-cli",
+  "name": "@vesely/ai-gateway-cli",
   "version": "0.1.0",
   "description": "Tiny CLI for generating text and images via the Vercel AI Gateway. One key, hundreds of models.",
   "keywords": [

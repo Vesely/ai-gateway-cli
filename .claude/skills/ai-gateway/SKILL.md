@@ -3,8 +3,8 @@ name: ai-gateway
 description: Generate text and images from the CLI via the Vercel AI Gateway (one key, hundreds of models).
 allowed-tools:
   - Bash(ai-gateway:*)
-  - Bash(npm install -g ai-gateway)
-  - Bash(npm list -g ai-gateway)
+  - Bash(npm install -g @vesely/ai-gateway-cli)
+  - Bash(npm list -g @vesely/ai-gateway-cli)
   - Bash(which ai-gateway)
   - Read
 when_to_use: |
@@ -35,7 +35,7 @@ A thin wrapper around the `ai-gateway` CLI (https://vercel.com/ai-gateway) for o
 
 ### 1. Verify the CLI is installed
 
-Run `which ai-gateway`. If missing, install: `npm install -g ai-gateway`.
+Run `which ai-gateway`. If missing, install: `npm install -g @vesely/ai-gateway-cli`.
 
 **Success criteria**: `which ai-gateway` returns a path.
 

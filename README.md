@@ -13,21 +13,21 @@ cat README.md | ai-gateway "summarize this"
 Requires Node 20+.
 
 ```bash
-npm install -g ai-gateway-cli
+npm install -g @vesely/ai-gateway-cli
 ```
 
 Or with another package manager:
 
 ```bash
-pnpm add -g ai-gateway-cli
-bun add -g ai-gateway-cli
+pnpm add -g @vesely/ai-gateway-cli
+bun add -g @vesely/ai-gateway-cli
 ```
 
 ## First run
 
 Get an API key from <https://vercel.com/ai-gateway> and either:
 
-- Run any command — you'll be prompted to paste it (saved to `~/.config/ai-gateway-cli/config.json`, chmod 600), or
+- Run any command — you'll be prompted to paste it (saved to `~/.config/@vesely/ai-gateway-cli/config.json`, chmod 600), or
 - Export it: `export AI_GATEWAY_API_KEY=...`, or
 - Run `ai-gateway config set key sk_...`
 
@@ -82,5 +82,5 @@ ai-gateway models --json | jq '.[] | select(.type=="language") | .id'
 
 1. `--key <value>` flag
 2. `AI_GATEWAY_API_KEY` env var
-3. `~/.config/ai-gateway-cli/config.json`
+3. `~/.config/@vesely/ai-gateway-cli/config.json`
 4. Interactive prompt (TTY only)
