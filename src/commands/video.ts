@@ -27,6 +27,8 @@ export async function runVideo(options: VideoOptions): Promise<void> {
     throw new Error(`Invalid --aspect "${options.aspect}". Use width:height, e.g. 16:9.`);
   }
 
+  const resolution = normalizeResolution(options.resolution, aspectRatio, modelId);
+
   const gateway = createGateway({ apiKey });
   const start = Date.now();
   const stopSpinner = options.json
@@ -41,9 +43,7 @@ export async function runVideo(options: VideoOptions): Promise<void> {
       prompt: options.prompt,
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(options.duration != null ? { duration: options.duration } : {}),
-      ...(options.resolution
-        ? { resolution: options.resolution as `${number}x${number}` }
-        : {}),
+      ...(resolution ? { resolution } : {}),
     });
     succeeded = true;
   } finally {
@@ -63,10 +63,10 @@ export async function runVideo(options: VideoOptions): Promise<void> {
 
   if (options.json) {
     const cost =
-      options.duration != null && options.resolution
+      options.duration != null && resolution
         ? await computeCost(modelId, {
             videoSeconds: options.duration * result.videos.length,
-            videoResolution: options.resolution,
+            videoResolution: resolution,
           })
         : null;
     stdout.write(
@@ -76,7 +76,7 @@ export async function runVideo(options: VideoOptions): Promise<void> {
           files: savedPaths,
           elapsedSeconds: +((Date.now() - start) / 1000).toFixed(1),
           durationSeconds: options.duration ?? null,
-          resolution: options.resolution ?? null,
+          resolution: resolution ?? null,
           aspectRatio: options.aspect ?? null,
           cost,
         },
@@ -87,6 +87,49 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   } else {
     for (const p of savedPaths) stdout.write(`Saved: ${p}\n`);
   }
+}
+
+const SHORTHAND_RESOLUTIONS: Record<string, [number, number]> = {
+  "480p": [854, 480],
+  "720p": [1280, 720],
+  "1080p": [1920, 1080],
+  "1440p": [2560, 1440],
+  "2160p": [3840, 2160],
+  "4k": [3840, 2160],
+};
+
+function normalizeResolution(
+  input: string | undefined,
+  aspect: `${number}:${number}` | undefined,
+  modelId: string,
+): `${number}x${number}` | undefined {
+  if (!input) return undefined;
+  const direct = input.match(/^(\d+)x(\d+)$/i);
+  if (direct) return `${Number(direct[1])}x${Number(direct[2])}`;
+  const dims = SHORTHAND_RESOLUTIONS[input.toLowerCase()];
+  if (!dims) {
+    throw new Error(
+      `Invalid --resolution "${input}". Use NxN (e.g. 1280x720) or a shorthand (480p, 720p, 1080p, 1440p, 2160p, 4k).`,
+    );
+  }
+  let [w, h] = dims;
+  // Wan v2.5 ships 480p as 848x480, not the Grok/Seedance 854x480.
+  if (input.toLowerCase() === "480p" && modelId === "alibaba/wan-v2.5-t2v-preview") {
+    w = 848;
+  }
+  if (aspect) {
+    const [awStr, ahStr] = aspect.split(":");
+    const aw = Number(awStr);
+    const ah = Number(ahStr);
+    if (aw === ah) {
+      const side = Math.min(w, h);
+      w = side;
+      h = side;
+    } else if (aw < ah) {
+      [w, h] = [h, w];
+    }
+  }
+  return `${w}x${h}`;
 }
 
 function pickExtension(mediaType: string | undefined): string {
