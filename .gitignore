@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+ai-image-*.png
+ai-image-*.jpg
+ai-image-*.webp
+.env
+.env.local
+bun.lock
+bun.lockb
