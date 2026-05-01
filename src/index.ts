@@ -2,17 +2,19 @@ import { stderr, stdout, exit, argv } from "node:process";
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import { runText } from "./commands/text.ts";
 import { runImage } from "./commands/image.ts";
+import { runVideo } from "./commands/video.ts";
 import { runModels } from "./commands/models.ts";
 import { runConfigShow, runConfigSet } from "./commands/config-cmd.ts";
 
-const HELP = `ai-gateway — generate text and images via the Vercel AI Gateway.
+const HELP = `ai-gateway — generate text, images, and video via the Vercel AI Gateway.
 
 USAGE
   ai-gateway [text] [options] <prompt>          generate text (streamed)
   ai-gateway image [options] <prompt>           generate an image, save to disk
+  ai-gateway video [options] <prompt>           generate a video, save to disk
   ai-gateway models [options]                   list available models
   ai-gateway config                             show current config
-  ai-gateway config set <key> <value>           set "key" | "text-model" | "image-model"
+  ai-gateway config set <key> <value>           set "key" | "text-model" | "image-model" | "video-model"
 
 TEXT OPTIONS
   -m, --model <id>     model id (default: configured or xai/grok-4.1-fast-non-reasoning)
@@ -24,6 +26,15 @@ IMAGE OPTIONS
   -m, --model <id>     model id (default: configured or bfl/flux-2-flex)
   -o, --output <path>  output file (default: ./ai-image-<timestamp>.png)
   -n, --count <n>      number of images (default: 1)
+      --json           print JSON metadata instead of human output
+      --key <value>    override API key for this call
+
+VIDEO OPTIONS
+  -m, --model <id>     model id (default: configured or xai/grok-imagine-video)
+  -o, --output <path>  output file (default: ./ai-video-<timestamp>.mp4)
+      --duration <s>   length in seconds (model-specific defaults)
+      --aspect <r>     aspect ratio, e.g. 16:9, 9:16, 1:1
+      --resolution <r> resolution, e.g. 720p, 1080p, 1280x720
       --json           print JSON metadata instead of human output
       --key <value>    override API key for this call
 
@@ -39,7 +50,8 @@ EXAMPLES
   ai-gateway "explain quicksort in 3 bullets"
   cat README.md | ai-gateway "summarize this"
   ai-gateway image "a red fox in a snowy forest" -o fox.png
-  ai-gateway models --type image
+  ai-gateway video "a wave crashing on rocks at sunset" --duration 5
+  ai-gateway models --type video
   ai-gateway config set key sk_...
 `;
 
@@ -54,6 +66,17 @@ const IMAGE_OPTIONS = {
   model: { type: "string", short: "m" },
   output: { type: "string", short: "o" },
   count: { type: "string", short: "n" },
+  key: { type: "string" },
+  json: { type: "boolean" },
+  help: { type: "boolean", short: "h" },
+} as const satisfies ParseArgsConfig["options"];
+
+const VIDEO_OPTIONS = {
+  model: { type: "string", short: "m" },
+  output: { type: "string", short: "o" },
+  duration: { type: "string" },
+  aspect: { type: "string" },
+  resolution: { type: "string" },
   key: { type: "string" },
   json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
@@ -77,6 +100,8 @@ async function main(): Promise<void> {
   switch (first) {
     case "image":
       return dispatchImage(rest);
+    case "video":
+      return dispatchVideo(rest);
     case "models":
       return dispatchModels(rest);
     case "config":
@@ -120,6 +145,29 @@ async function dispatchImage(args: string[]): Promise<void> {
     apiKey: values.key,
     output: values.output,
     count,
+    json: values.json,
+  });
+}
+
+async function dispatchVideo(args: string[]): Promise<void> {
+  const { values, positionals } = parseArgs({
+    args, options: VIDEO_OPTIONS, allowPositionals: true, strict: true,
+  });
+  if (values.help) return void stdout.write(HELP);
+  const prompt = positionals.join(" ").trim();
+  if (!prompt) throw new Error('Missing prompt. Try: ai-gateway video "a wave crashing on rocks"');
+  const duration = values.duration !== undefined ? Number(values.duration) : undefined;
+  if (duration !== undefined && (!Number.isFinite(duration) || duration <= 0)) {
+    throw new Error("--duration must be a positive number of seconds.");
+  }
+  await runVideo({
+    prompt,
+    model: values.model,
+    apiKey: values.key,
+    output: values.output,
+    duration,
+    aspect: values.aspect,
+    resolution: values.resolution,
     json: values.json,
   });
 }

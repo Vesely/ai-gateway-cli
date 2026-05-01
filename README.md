@@ -1,10 +1,11 @@
 # ai-gateway
 
-A tiny CLI for generating text and images via the [Vercel AI Gateway](https://vercel.com/ai-gateway). One key, hundreds of models, no code required.
+A tiny CLI for generating text, images, and video via the [Vercel AI Gateway](https://vercel.com/ai-gateway). One key, hundreds of models, no code required.
 
 ```bash
 ai-gateway "explain quicksort in 3 bullets"
 ai-gateway image "a red fox in a snowy forest" -o fox.png
+ai-gateway video "a wave crashing on rocks at sunset" --duration 5
 cat README.md | ai-gateway "summarize this"
 ```
 
@@ -37,9 +38,10 @@ Get an API key from <https://vercel.com/ai-gateway> and either:
 | --- | --- |
 | `ai-gateway "<prompt>"` | Streamed text completion (default command). |
 | `ai-gateway image "<prompt>"` | Generate an image, save to disk. |
+| `ai-gateway video "<prompt>"` | Generate a video, save to disk. Takes minutes. |
 | `ai-gateway models` | List all available models with prices. |
 | `ai-gateway config` | Show current config. |
-| `ai-gateway config set <key> <value>` | Set `key`, `text-model`, or `image-model`. |
+| `ai-gateway config set <key> <value>` | Set `key`, `text-model`, `image-model`, or `video-model`. |
 
 ## Defaults
 
@@ -47,6 +49,7 @@ Picked for the best price/quality ratio:
 
 - Text: `xai/grok-4.1-fast-non-reasoning`
 - Image: `bfl/flux-2-flex`
+- Video: `xai/grok-imagine-video`
 
 Override per-call with `-m <model-id>`, or persist with `ai-gateway config set text-model openai/gpt-5.4`.
 
@@ -76,7 +79,15 @@ ai-gateway image -m google/gemini-3-pro-image -o cover.png "minimalist mountain 
 ai-gateway models --type image
 ai-gateway models --search claude
 ai-gateway models --json | jq '.[] | select(.type=="language") | .id'
+
+# Video (multi-minute job, shows a spinner)
+ai-gateway video "a wave crashing on rocks at sunset" --duration 5
+ai-gateway video -m google/veo-3.1-fast-generate-001 --aspect 9:16 --resolution 1080p \
+  -o vertical.mp4 "a hummingbird at a flower, slow motion"
+ai-gateway video --json --duration 5 "a tiny ripple in water"
 ```
+
+> Video generation requires a minimum $10 balance on your AI Gateway account.
 
 ## Claude Code skill
 

@@ -1,6 +1,6 @@
 {
   "name": "@vesely/ai-gateway-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tiny CLI for generating text and images via the Vercel AI Gateway. One key, hundreds of models.",
   "keywords": [
     "ai",
@@ -44,8 +44,8 @@
     "prepublishOnly": "bun run typecheck && bun run build"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "^1.0.0",
-    "ai": "^5.0.0"
+    "@ai-sdk/gateway": "^3.0.107",
+    "ai": "^6.0.172"
   },
   "devDependencies": {
     "@types/bun": "latest",

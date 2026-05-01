@@ -7,10 +7,12 @@ export type Config = {
   apiKey?: string;
   textModel?: string;
   imageModel?: string;
+  videoModel?: string;
 };
 
 export const DEFAULT_TEXT_MODEL = "xai/grok-4.1-fast-non-reasoning";
 export const DEFAULT_IMAGE_MODEL = "bfl/flux-2-flex";
+export const DEFAULT_VIDEO_MODEL = "xai/grok-imagine-video";
 
 const CONFIG_DIR = join(homedir(), ".config", "ai-gateway-cli");
 export const CONFIG_PATH = join(CONFIG_DIR, "config.json");

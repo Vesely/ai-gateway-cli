@@ -15,6 +15,10 @@ export type ModelEntry = {
     input?: string;
     output?: string;
     image?: string;
+    video_duration_pricing?: Array<{
+      resolution: string;
+      cost_per_second: string;
+    }>;
   };
 };
 
@@ -39,6 +43,8 @@ export type Usage = {
   inputTokens?: number;
   outputTokens?: number;
   imageCount?: number;
+  videoSeconds?: number;
+  videoResolution?: string;
 };
 
 export async function computeCost(
@@ -47,17 +53,53 @@ export async function computeCost(
 ): Promise<number | null> {
   const meta = await findModel(modelId).catch(() => undefined);
   const pricing = meta?.pricing;
-  if (!pricing || (pricing.input == null && pricing.output == null && pricing.image == null)) {
-    return null;
-  }
+  if (!pricing) return null;
+  const hasTokenPricing = pricing.input != null || pricing.output != null || pricing.image != null;
+  const hasVideoPricing = (pricing.video_duration_pricing?.length ?? 0) > 0;
+  if (!hasTokenPricing && !hasVideoPricing) return null;
+
   const inputPrice = Number(pricing.input ?? 0);
   const outputPrice = Number(pricing.output ?? 0);
   const imagePrice = Number(pricing.image ?? 0);
-  return (
+  const tokenCost =
     (usage.inputTokens ?? 0) * (Number.isFinite(inputPrice) ? inputPrice : 0) +
     (usage.outputTokens ?? 0) * (Number.isFinite(outputPrice) ? outputPrice : 0) +
-    (usage.imageCount ?? 0) * (Number.isFinite(imagePrice) ? imagePrice : 0)
-  );
+    (usage.imageCount ?? 0) * (Number.isFinite(imagePrice) ? imagePrice : 0);
+
+  let videoCost = 0;
+  if (hasVideoPricing && usage.videoSeconds && usage.videoSeconds > 0) {
+    const tier = pickVideoTier(pricing.video_duration_pricing!, usage.videoResolution);
+    const perSecond = Number(tier?.cost_per_second ?? 0);
+    if (Number.isFinite(perSecond)) videoCost = perSecond * usage.videoSeconds;
+  }
+  return tokenCost + videoCost;
+}
+
+function pickVideoTier(
+  tiers: Array<{ resolution: string; cost_per_second: string }>,
+  requested: string | undefined,
+): { resolution: string; cost_per_second: string } | undefined {
+  const normalized = normalizeResolution(requested);
+  if (normalized) {
+    const exact = tiers.find((t) => t.resolution === normalized);
+    if (exact) return exact;
+  }
+  // Cheapest tier when caller didn't specify or no match.
+  return [...tiers].sort(
+    (a, b) => Number(a.cost_per_second) - Number(b.cost_per_second),
+  )[0];
+}
+
+function normalizeResolution(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const lower = input.toLowerCase();
+  if (/^\d+p$/.test(lower)) return lower;
+  const dims = lower.match(/^(\d+)x(\d+)$/);
+  if (dims) {
+    const shorter = Math.min(Number(dims[1]), Number(dims[2]));
+    return `${shorter}p`;
+  }
+  return undefined;
 }
 
 export async function resolveApiKey(
