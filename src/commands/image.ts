@@ -2,7 +2,13 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { stdout } from "node:process";
 import { DEFAULT_IMAGE_MODEL, loadConfig } from "../config.ts";
-import { resolveApiKey, gatewayFetch, findModel, type ModelEntry } from "../gateway.ts";
+import {
+  resolveApiKey,
+  gatewayFetch,
+  findModel,
+  computeCost,
+  type ModelEntry,
+} from "../gateway.ts";
 
 export type ImageOptions = {
   prompt: string;
@@ -26,22 +32,29 @@ export async function runImage(options: ImageOptions): Promise<void> {
   const meta = await findModel(modelId);
   const route = pickRoute(modelId, meta);
 
-  const bytesList = route === "chat"
+  const result = route === "chat"
     ? await viaChatCompletions({ apiKey, modelId, prompt: options.prompt, count })
     : await viaImagesGenerations({ apiKey, modelId, prompt: options.prompt, count });
 
-  if (bytesList.length === 0) throw new Error("Gateway returned no images.");
+  if (result.bytes.length === 0) throw new Error("Gateway returned no images.");
 
   const savedPaths = await Promise.all(
-    bytesList.map(async (bytes, i) => {
-      const filePath = resolveOutputPath(options.output, i, bytesList.length);
+    result.bytes.map(async (bytes, i) => {
+      const filePath = resolveOutputPath(options.output, i, result.bytes.length);
       await writeFile(filePath, bytes);
       return filePath;
     }),
   );
 
   if (options.json) {
-    stdout.write(JSON.stringify({ model: modelId, files: savedPaths }, null, 2) + "\n");
+    const cost = await computeCost(modelId, result.usage);
+    stdout.write(
+      JSON.stringify(
+        { model: modelId, files: savedPaths, usage: result.usage, cost },
+        null,
+        2,
+      ) + "\n",
+    );
   } else {
     for (const p of savedPaths) stdout.write(`Saved: ${p}\n`);
   }
@@ -58,8 +71,10 @@ function pickRoute(modelId: string, meta: ModelEntry | undefined): "images" | "c
 }
 
 type RouteArgs = { apiKey: string; modelId: string; prompt: string; count: number };
+type RouteUsage = { inputTokens?: number; outputTokens?: number; imageCount?: number };
+type RouteResult = { bytes: Uint8Array[]; usage: RouteUsage };
 
-async function viaImagesGenerations(args: RouteArgs): Promise<Uint8Array[]> {
+async function viaImagesGenerations(args: RouteArgs): Promise<RouteResult> {
   const res = await gatewayFetch("/images/generations", {
     apiKey: args.apiKey,
     method: "POST",
@@ -67,14 +82,18 @@ async function viaImagesGenerations(args: RouteArgs): Promise<Uint8Array[]> {
       model: args.modelId,
       prompt: args.prompt,
       n: args.count,
-      response_format: "b64_json",
     }),
   });
   const json = (await res.json()) as {
     data?: Array<{ b64_json?: string; url?: string }>;
+    usage?: { input_tokens?: number; output_tokens?: number };
   };
   const entries = json.data ?? [];
-  return Promise.all(entries.map(decodeImageEntry));
+  const bytes = await Promise.all(entries.map(decodeImageEntry));
+  const usage: RouteUsage = { imageCount: bytes.length };
+  if (json.usage?.input_tokens != null) usage.inputTokens = json.usage.input_tokens;
+  if (json.usage?.output_tokens != null) usage.outputTokens = json.usage.output_tokens;
+  return { bytes, usage };
 }
 
 type ChatImage = { type?: string; image_url?: { url?: string } };
@@ -82,9 +101,10 @@ type ChatResponse = {
   choices?: Array<{
     message?: { content?: string; images?: ChatImage[] };
   }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
 };
 
-async function viaChatCompletions(args: RouteArgs): Promise<Uint8Array[]> {
+async function viaChatCompletions(args: RouteArgs): Promise<RouteResult> {
   // /v1/chat/completions has no native `n`; fan out and collect.
   const responses = await Promise.all(
     Array.from({ length: args.count }, () =>
@@ -101,17 +121,35 @@ async function viaChatCompletions(args: RouteArgs): Promise<Uint8Array[]> {
   );
 
   const collected: Uint8Array[] = [];
+  let inputTokens = 0;
+  let outputTokens = 0;
   for (const json of responses) {
+    inputTokens += json.usage?.prompt_tokens ?? 0;
+    outputTokens += json.usage?.completion_tokens ?? 0;
     const message = json.choices?.[0]?.message;
     const images = message?.images ?? [];
     if (images.length === 0) {
-      throw new Error(
-        `Model "${args.modelId}" returned no images. Text response: ${message?.content?.slice(0, 200) ?? "(empty)"}`,
-      );
+      throw new Error(noImagesError(args.modelId, message?.content));
     }
     for (const img of images) collected.push(decodeDataUrl(img.image_url?.url));
   }
-  return collected;
+  return { bytes: collected, usage: { inputTokens, outputTokens } };
+}
+
+function noImagesError(modelId: string, content: string | undefined): string {
+  const snippet = content?.slice(0, 200) ?? "(empty)";
+  if (modelId.startsWith("openai/gpt-5")) {
+    return (
+      `Model "${modelId}" is tagged image-generation but the OpenAI provider returns SVG/text via /chat/completions, not binary images. ` +
+      `Use google/gemini-2.5-flash-image, google/gemini-3-pro-image, or an image-only model from \`ai-gateway models --type image\`. ` +
+      `Text response: ${snippet}`
+    );
+  }
+  return (
+    `Model "${modelId}" returned no images via /chat/completions. ` +
+    `If this is unexpected, the provider may not actually support image output through chat. ` +
+    `Text response: ${snippet}`
+  );
 }
 
 async function decodeImageEntry(entry: { b64_json?: string; url?: string }): Promise<Uint8Array> {

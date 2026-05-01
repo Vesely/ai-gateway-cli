@@ -2,7 +2,7 @@ import { stdin, stdout } from "node:process";
 import { createGateway } from "@ai-sdk/gateway";
 import { streamText, generateText } from "ai";
 import { DEFAULT_TEXT_MODEL, loadConfig } from "../config.ts";
-import { resolveApiKey } from "../gateway.ts";
+import { resolveApiKey, computeCost } from "../gateway.ts";
 
 export type TextOptions = {
   prompt: string;
@@ -23,12 +23,18 @@ export async function runText(options: TextOptions): Promise<void> {
 
   if (options.json) {
     const result = await generateText({ model, prompt });
+    const usage = result.usage as { inputTokens?: number; outputTokens?: number };
+    const cost = await computeCost(modelId, {
+      inputTokens: usage?.inputTokens,
+      outputTokens: usage?.outputTokens,
+    });
     stdout.write(JSON.stringify(
       {
         model: modelId,
         text: result.text,
         usage: result.usage,
         finishReason: result.finishReason,
+        cost,
       },
       null,
       2,

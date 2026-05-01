@@ -35,6 +35,31 @@ export async function findModel(id: string): Promise<ModelEntry | undefined> {
   return all.find((m) => m.id === id);
 }
 
+export type Usage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  imageCount?: number;
+};
+
+export async function computeCost(
+  modelId: string,
+  usage: Usage,
+): Promise<number | null> {
+  const meta = await findModel(modelId).catch(() => undefined);
+  const pricing = meta?.pricing;
+  if (!pricing || (pricing.input == null && pricing.output == null && pricing.image == null)) {
+    return null;
+  }
+  const inputPrice = Number(pricing.input ?? 0);
+  const outputPrice = Number(pricing.output ?? 0);
+  const imagePrice = Number(pricing.image ?? 0);
+  return (
+    (usage.inputTokens ?? 0) * (Number.isFinite(inputPrice) ? inputPrice : 0) +
+    (usage.outputTokens ?? 0) * (Number.isFinite(outputPrice) ? outputPrice : 0) +
+    (usage.imageCount ?? 0) * (Number.isFinite(imagePrice) ? imagePrice : 0)
+  );
+}
+
 export async function resolveApiKey(
   config: Config,
   flagKey?: string,
