@@ -1,10 +1,14 @@
 import { writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { stdout, stderr } from "node:process";
 import { createGateway } from "@ai-sdk/gateway";
 import { experimental_generateVideo as generateVideo } from "ai";
-import { DEFAULT_VIDEO_MODEL, loadConfig } from "../config.ts";
-import { resolveApiKey, computeCost } from "../gateway.ts";
+import {
+  DEFAULT_VIDEO_MODEL,
+  WAN_V2_5_T2V_MODEL,
+  loadConfig,
+} from "../config.ts";
+import { resolveApiKey, computeCost, findModel } from "../gateway.ts";
+import { resolveOutputPath } from "../output-path.ts";
 
 export type VideoOptions = {
   prompt: string;
@@ -22,12 +26,19 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   const apiKey = await resolveApiKey(config, options.apiKey);
   const modelId = options.model ?? config.videoModel ?? DEFAULT_VIDEO_MODEL;
 
-  const aspectRatio = options.aspect as `${number}:${number}` | undefined;
-  if (aspectRatio && !/^\d+:\d+$/.test(aspectRatio)) {
+  if (options.aspect && !/^\d+:\d+$/.test(options.aspect)) {
     throw new Error(`Invalid --aspect "${options.aspect}". Use width:height, e.g. 16:9.`);
   }
+  const aspectRatio = options.aspect as `${number}:${number}` | undefined;
 
   const resolution = normalizeResolution(options.resolution, aspectRatio, modelId);
+
+  const meta = await findModel(modelId);
+  if (meta && meta.type !== "video") {
+    throw new Error(
+      `Model "${modelId}" is type "${meta.type}", not video. Run \`ai-gateway models --type video\` to see options.`,
+    );
+  }
 
   const gateway = createGateway({ apiKey });
   const start = Date.now();
@@ -41,6 +52,7 @@ export async function runVideo(options: VideoOptions): Promise<void> {
     result = await generateVideo({
       model: gateway.videoModel(modelId),
       prompt: options.prompt,
+      maxRetries: 0,
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(options.duration != null ? { duration: options.duration } : {}),
       ...(resolution ? { resolution } : {}),
@@ -55,7 +67,7 @@ export async function runVideo(options: VideoOptions): Promise<void> {
   const ext = pickExtension(result.videos[0]?.mediaType);
   const savedPaths = await Promise.all(
     result.videos.map(async (video, i) => {
-      const filePath = resolveOutputPath(options.output, i, result.videos.length, ext);
+      const filePath = resolveOutputPath(options.output, i, result.videos.length, ext, "ai-video");
       await writeFile(filePath, video.uint8Array);
       return filePath;
     }),
@@ -113,8 +125,7 @@ function normalizeResolution(
     );
   }
   let [w, h] = dims;
-  // Wan v2.5 ships 480p as 848x480, not the Grok/Seedance 854x480.
-  if (input.toLowerCase() === "480p" && modelId === "alibaba/wan-v2.5-t2v-preview") {
+  if (input.toLowerCase() === "480p" && modelId === WAN_V2_5_T2V_MODEL) {
     w = 848;
   }
   if (aspect) {
@@ -137,32 +148,6 @@ function pickExtension(mediaType: string | undefined): string {
   if (mediaType.includes("webm")) return "webm";
   if (mediaType.includes("quicktime")) return "mov";
   return "mp4";
-}
-
-function resolveOutputPath(
-  override: string | undefined,
-  index: number,
-  total: number,
-  ext: string,
-): string {
-  if (override) {
-    const withExt = override.includes(".") ? override : `${override}.${ext}`;
-    if (total === 1) return resolve(withExt);
-    return resolve(suffixFilename(withExt, `-${index + 1}`));
-  }
-  const stamp = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-")
-    .replace("T", "_")
-    .slice(0, 19);
-  const suffix = total === 1 ? "" : `-${index + 1}`;
-  return resolve(`ai-video-${stamp}${suffix}.${ext}`);
-}
-
-function suffixFilename(path: string, suffix: string): string {
-  const dot = path.lastIndexOf(".");
-  if (dot === -1) return path + suffix;
-  return path.slice(0, dot) + suffix + path.slice(dot);
 }
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];

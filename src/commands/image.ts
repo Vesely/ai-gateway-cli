@@ -1,5 +1,4 @@
 import { writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { stdout } from "node:process";
 import { DEFAULT_IMAGE_MODEL, loadConfig } from "../config.ts";
 import {
@@ -9,6 +8,7 @@ import {
   computeCost,
   type ModelEntry,
 } from "../gateway.ts";
+import { resolveOutputPath } from "../output-path.ts";
 
 export type ImageOptions = {
   prompt: string;
@@ -40,7 +40,7 @@ export async function runImage(options: ImageOptions): Promise<void> {
 
   const savedPaths = await Promise.all(
     result.bytes.map(async (bytes, i) => {
-      const filePath = resolveOutputPath(options.output, i, result.bytes.length);
+      const filePath = resolveOutputPath(options.output, i, result.bytes.length, "png", "ai-image");
       await writeFile(filePath, bytes);
       return filePath;
     }),
@@ -170,28 +170,4 @@ function decodeDataUrl(url: string | undefined): Uint8Array {
     throw new Error(`Unexpected image URL format: ${url.slice(0, 50)}…`);
   }
   return Buffer.from(url.slice(comma + 1), "base64");
-}
-
-function resolveOutputPath(
-  override: string | undefined,
-  index: number,
-  total: number,
-): string {
-  if (override) {
-    if (total === 1) return resolve(override);
-    return resolve(suffixFilename(override, `-${index + 1}`));
-  }
-  const stamp = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-")
-    .replace("T", "_")
-    .slice(0, 19);
-  const suffix = total === 1 ? "" : `-${index + 1}`;
-  return resolve(`ai-image-${stamp}${suffix}.png`);
-}
-
-function suffixFilename(path: string, suffix: string): string {
-  const dot = path.lastIndexOf(".");
-  if (dot === -1) return path + suffix;
-  return path.slice(0, dot) + suffix + path.slice(dot);
 }

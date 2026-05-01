@@ -13,6 +13,7 @@ export type Config = {
 export const DEFAULT_TEXT_MODEL = "xai/grok-4.1-fast-non-reasoning";
 export const DEFAULT_IMAGE_MODEL = "bfl/flux-2-flex";
 export const DEFAULT_VIDEO_MODEL = "xai/grok-imagine-video";
+export const WAN_V2_5_T2V_MODEL = "alibaba/wan-v2.5-t2v-preview";
 
 const CONFIG_DIR = join(homedir(), ".config", "ai-gateway-cli");
 export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
